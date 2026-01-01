@@ -3,237 +3,130 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>オセロ</title>
+<title>My Games</title>
 
 <style>
-  body {
-    text-align: center;
-    font-family: sans-serif;
-  }
+body {
+  margin: 0;
+  font-family: system-ui, sans-serif;
+  background: linear-gradient(180deg, #0f2027, #203a43, #2c5364);
+  color: white;
+}
 
-  #board {
-    display: grid;
-    grid-template-columns: repeat(8, 44px);
-    gap: 2px;
-    justify-content: center;
-    margin-top: 10px;
-  }
+/* ヘッダー */
+header {
+  text-align: center;
+  padding: 40px 20px 20px;
+}
 
-  .cell {
-    width: 44px;
-    height: 44px;
-    background: green;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-  }
+header h1 {
+  margin: 0;
+  font-size: 28px;
+}
 
-  .black, .white {
-    width: 34px;
-    height: 34px;
-    border-radius: 50%;
-  }
+header p {
+  margin-top: 10px;
+  font-size: 14px;
+  opacity: 0.8;
+}
 
-  .black { background: black; }
-  .white { background: white; }
+/* ゲーム一覧 */
+main {
+  padding: 20px;
+}
 
-  .hint {
-    width: 12px;
-    height: 12px;
-    background: rgba(255, 255, 0, 0.7);
-    border-radius: 50%;
-  }
+.game-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+  gap: 16px;
+}
 
-  button {
-    font-size: 16px;
-    padding: 8px 16px;
-    margin-top: 10px;
-  }
+/* カード */
+.game-card {
+  background: rgba(255,255,255,0.08);
+  border-radius: 16px;
+  padding: 16px;
+  text-decoration: none;
+  color: white;
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+  min-height: 160px;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.game-card:hover {
+  transform: translateY(-4px);
+  background: rgba(255,255,255,0.15);
+}
+
+/* サムネ */
+.thumb {
+  width: 100%;
+  height: 90px;
+  border-radius: 12px;
+  background: linear-gradient(135deg, #ff512f, #dd2476);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 36px;
+}
+
+/* タイトル */
+.game-title {
+  margin-top: 12px;
+  font-size: 16px;
+  font-weight: bold;
+}
+
+/* 説明 */
+.game-desc {
+  font-size: 12px;
+  opacity: 0.8;
+  margin-top: 6px;
+}
 </style>
 </head>
 
 <body>
 
-<h2>オセロ</h2>
-<p id="turn">黒の番です</p>
-<p id="count">黒: 2 / 白: 2</p>
-<button onclick="resetGame()">リスタート</button>
+<header>
+  <h1>🎮 My Games</h1>
+  <p>ChatGPT と作ったゲーム集</p>
+</header>
 
-<div id="board"></div>
+<main>
+  <div class="game-list">
 
-<script>
-const board = Array(8).fill().map(() => Array(8).fill(0));
-// 0: 空, 1: 黒, 2: 白
-let current = 1;
+    <!-- オセロ -->
+    <a class="game-card" href="othello.html">
+      <div class="thumb">⚫️⚪️</div>
+      <div>
+        <div class="game-title">オセロ</div>
+        <div class="game-desc">2人対戦・定番ボードゲーム</div>
+      </div>
+    </a>
 
-const boardDiv = document.getElementById("board");
-const turnText = document.getElementById("turn");
-const countText = document.getElementById("count");
+    <!-- 3Dアクション -->
+    <a class="game-card" href="3djump.html">
+      <div class="thumb">🟥</div>
+      <div>
+        <div class="game-title">3Dアクション</div>
+        <div class="game-desc">ジャンプで敵を倒す</div>
+      </div>
+    </a>
 
-const dirs = [
-  [1,0], [-1,0], [0,1], [0,-1],
-  [1,1], [1,-1], [-1,1], [-1,-1]
-];
+    <!-- 追加予定 -->
+    <a class="game-card" href="#">
+      <div class="thumb">➕</div>
+      <div>
+        <div class="game-title">Coming Soon</div>
+        <div class="game-desc">新作ゲーム制作中</div>
+      </div>
+    </a>
 
-function initBoard() {
-  for (let y = 0; y < 8; y++) {
-    for (let x = 0; x < 8; x++) {
-      board[y][x] = 0;
-    }
-  }
-  board[3][3] = 2;
-  board[3][4] = 1;
-  board[4][3] = 1;
-  board[4][4] = 2;
-}
-
-function canPlace(x, y, player) {
-  if (board[y][x] !== 0) return false;
-
-  for (const [dx, dy] of dirs) {
-    let nx = x + dx;
-    let ny = y + dy;
-    let foundOpponent = false;
-
-    while (nx >= 0 && nx < 8 && ny >= 0 && ny < 8) {
-      if (board[ny][nx] === 0) break;
-      if (board[ny][nx] === player) {
-        if (foundOpponent) return true;
-        break;
-      }
-      foundOpponent = true;
-      nx += dx;
-      ny += dy;
-    }
-  }
-  return false;
-}
-
-function canMove(player) {
-  for (let y = 0; y < 8; y++) {
-    for (let x = 0; x < 8; x++) {
-      if (canPlace(x, y, player)) return true;
-    }
-  }
-  return false;
-}
-
-function move(x, y) {
-  if (!canPlace(x, y, current)) return;
-
-  let flipped = [];
-
-  for (const [dx, dy] of dirs) {
-    let nx = x + dx;
-    let ny = y + dy;
-    let temp = [];
-
-    while (nx >= 0 && nx < 8 && ny >= 0 && ny < 8) {
-      if (board[ny][nx] === 0) break;
-      if (board[ny][nx] === current) {
-        flipped = flipped.concat(temp);
-        break;
-      }
-      temp.push([nx, ny]);
-      nx += dx;
-      ny += dy;
-    }
-  }
-
-  board[y][x] = current;
-  for (const [fx, fy] of flipped) {
-    board[fy][fx] = current;
-  }
-
-  current = current === 1 ? 2 : 1;
-
-  if (!canMove(current)) {
-    const other = current === 1 ? 2 : 1;
-    if (!canMove(other)) {
-      endGame();
-      return;
-    } else {
-      alert("置ける場所がないためパスします");
-      current = other;
-    }
-  }
-
-  turnText.textContent = current === 1 ? "黒の番です" : "白の番です";
-  draw();
-}
-
-function updateCount() {
-  let black = 0;
-  let white = 0;
-
-  for (let y = 0; y < 8; y++) {
-    for (let x = 0; x < 8; x++) {
-      if (board[y][x] === 1) black++;
-      if (board[y][x] === 2) white++;
-    }
-  }
-  countText.textContent = `黒: ${black} / 白: ${white}`;
-}
-
-function endGame() {
-  let black = 0;
-  let white = 0;
-
-  for (let y = 0; y < 8; y++) {
-    for (let x = 0; x < 8; x++) {
-      if (board[y][x] === 1) black++;
-      if (board[y][x] === 2) white++;
-    }
-  }
-
-  let result = "引き分け";
-  if (black > white) result = "黒の勝ち！";
-  if (white > black) result = "白の勝ち！";
-
-  alert(`ゲーム終了\n黒: ${black}\n白: ${white}\n\n${result}`);
-}
-
-function resetGame() {
-  initBoard();
-  current = 1;
-  turnText.textContent = "黒の番です";
-  draw();
-}
-
-function draw() {
-  boardDiv.innerHTML = "";
-
-  for (let y = 0; y < 8; y++) {
-    for (let x = 0; x < 8; x++) {
-      const cell = document.createElement("div");
-      cell.className = "cell";
-      cell.onclick = () => move(x, y);
-
-      if (board[y][x] === 1) {
-        const s = document.createElement("div");
-        s.className = "black";
-        cell.appendChild(s);
-      }
-      if (board[y][x] === 2) {
-        const s = document.createElement("div");
-        s.className = "white";
-        cell.appendChild(s);
-      }
-      if (canPlace(x, y, current)) {
-        const h = document.createElement("div");
-        h.className = "hint";
-        cell.appendChild(h);
-      }
-
-      boardDiv.appendChild(cell);
-    }
-  }
-  updateCount();
-}
-
-initBoard();
-draw();
-</script>
+  </div>
+</main>
 
 </body>
 </html>
