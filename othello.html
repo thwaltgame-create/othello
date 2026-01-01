@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>オセロ</title>
+
+<style>
+  body {
+    text-align: center;
+    font-family: sans-serif;
+  }
+
+  #board {
+    display: grid;
+    grid-template-columns: repeat(8, 44px);
+    gap: 2px;
+    justify-content: center;
+    margin-top: 10px;
+  }
+
+  .cell {
+    width: 44px;
+    height: 44px;
+    background: green;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+  }
+
+  .black, .white {
+    width: 34px;
+    height: 34px;
+    border-radius: 50%;
+  }
+
+  .black { background: black; }
+  .white { background: white; }
+
+  .hint {
+    width: 12px;
+    height: 12px;
+    background: rgba(255, 255, 0, 0.7);
+    border-radius: 50%;
+  }
+
+  button {
+    font-size: 16px;
+    padding: 8px 16px;
+    margin-top: 10px;
+  }
+</style>
+</head>
+
+<body>
+
+<h2>オセロ</h2>
+<p id="turn">黒の番です</p>
+<p id="count">黒: 2 / 白: 2</p>
+<button onclick="resetGame()">リスタート</button>
+
+<div id="board"></div>
+
+<script>
+const board = Array(8).fill().map(() => Array(8).fill(0));
+// 0: 空, 1: 黒, 2: 白
+let current = 1;
+
+const boardDiv = document.getElementById("board");
+const turnText = document.getElementById("turn");
+const countText = document.getElementById("count");
+
+const dirs = [
+  [1,0], [-1,0], [0,1], [0,-1],
+  [1,1], [1,-1], [-1,1], [-1,-1]
+];
+
+function initBoard() {
+  for (let y = 0; y < 8; y++) {
+    for (let x = 0; x < 8; x++) {
+      board[y][x] = 0;
+    }
+  }
+  board[3][3] = 2;
+  board[3][4] = 1;
+  board[4][3] = 1;
+  board[4][4] = 2;
+}
+
+function canPlace(x, y, player) {
+  if (board[y][x] !== 0) return false;
+
+  for (const [dx, dy] of dirs) {
+    let nx = x + dx;
+    let ny = y + dy;
+    let foundOpponent = false;
+
+    while (nx >= 0 && nx < 8 && ny >= 0 && ny < 8) {
+      if (board[ny][nx] === 0) break;
+      if (board[ny][nx] === player) {
+        if (foundOpponent) return true;
+        break;
+      }
+      foundOpponent = true;
+      nx += dx;
+      ny += dy;
+    }
+  }
+  return false;
+}
+
+function canMove(player) {
+  for (let y = 0; y < 8; y++) {
+    for (let x = 0; x < 8; x++) {
+      if (canPlace(x, y, player)) return true;
+    }
+  }
+  return false;
+}
+
+function move(x, y) {
+  if (!canPlace(x, y, current)) return;
+
+  let flipped = [];
+
+  for (const [dx, dy] of dirs) {
+    let nx = x + dx;
+    let ny = y + dy;
+    let temp = [];
+
+    while (nx >= 0 && nx < 8 && ny >= 0 && ny < 8) {
+      if (board[ny][nx] === 0) break;
+      if (board[ny][nx] === current) {
+        flipped = flipped.concat(temp);
+        break;
+      }
+      temp.push([nx, ny]);
+      nx += dx;
+      ny += dy;
+    }
+  }
+
+  board[y][x] = current;
+  for (const [fx, fy] of flipped) {
+    board[fy][fx] = current;
+  }
+
+  current = current === 1 ? 2 : 1;
+
+  if (!canMove(current)) {
+    const other = current === 1 ? 2 : 1;
+    if (!canMove(other)) {
+      endGame();
+      return;
+    } else {
+      alert("置ける場所がないためパスします");
+      current = other;
+    }
+  }
+
+  turnText.textContent = current === 1 ? "黒の番です" : "白の番です";
+  draw();
+}
+
+function updateCount() {
+  let black = 0;
+  let white = 0;
+
+  for (let y = 0; y < 8; y++) {
+    for (let x = 0; x < 8; x++) {
+      if (board[y][x] === 1) black++;
+      if (board[y][x] === 2) white++;
+    }
+  }
+  countText.textContent = `黒: ${black} / 白: ${white}`;
+}
+
+function endGame() {
+  let black = 0;
+  let white = 0;
+
+  for (let y = 0; y < 8; y++) {
+    for (let x = 0; x < 8; x++) {
+      if (board[y][x] === 1) black++;
+      if (board[y][x] === 2) white++;
+    }
+  }
+
+  let result = "引き分け";
+  if (black > white) result = "黒の勝ち！";
+  if (white > black) result = "白の勝ち！";
+
+  alert(`ゲーム終了\n黒: ${black}\n白: ${white}\n\n${result}`);
+}
+
+function resetGame() {
+  initBoard();
+  current = 1;
+  turnText.textContent = "黒の番です";
+  draw();
+}
+
+function draw() {
+  boardDiv.innerHTML = "";
+
+  for (let y = 0; y < 8; y++) {
+    for (let x = 0; x < 8; x++) {
+      const cell = document.createElement("div");
+      cell.className = "cell";
+      cell.onclick = () => move(x, y);
+
+      if (board[y][x] === 1) {
+        const s = document.createElement("div");
+        s.className = "black";
+        cell.appendChild(s);
+      }
+      if (board[y][x] === 2) {
+        const s = document.createElement("div");
+        s.className = "white";
+        cell.appendChild(s);
+      }
+      if (canPlace(x, y, current)) {
+        const h = document.createElement("div");
+        h.className = "hint";
+        cell.appendChild(h);
+      }
+
+      boardDiv.appendChild(cell);
+    }
+  }
+  updateCount();
+}
+
+initBoard();
+draw();
+</script>
+
+</body>
+</html>
