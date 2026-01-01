@@ -1,0 +1,314 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>3Dアクションゲーム</title>
+
+<style>
+body {
+  margin: 0;
+  overflow: hidden;
+  font-family: sans-serif;
+}
+
+/* UI */
+#ui {
+  position: fixed;
+  bottom: 20px;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  padding: 0 20px;
+  box-sizing: border-box;
+}
+
+/* スティック */
+#stick-area {
+  width: 120px;
+  height: 120px;
+  background: rgba(0,0,0,0.3);
+  border-radius: 50%;
+  position: relative;
+  touch-action: none;
+}
+
+#stick {
+  width: 50px;
+  height: 50px;
+  background: rgba(255,255,255,0.7);
+  border-radius: 50%;
+  position: absolute;
+  left: 35px;
+  top: 35px;
+}
+
+/* ジャンプ */
+.btn {
+  width: 70px;
+  height: 70px;
+  background: rgba(0,0,0,0.5);
+  color: white;
+  border-radius: 50%;
+  text-align: center;
+  line-height: 70px;
+  font-size: 24px;
+  user-select: none;
+}
+
+/* GAME OVER */
+#gameover {
+  position: fixed;
+  top: 40%;
+  width: 100%;
+  text-align: center;
+  font-size: 48px;
+  color: red;
+  font-weight: bold;
+  display: none;
+}
+
+#restart {
+  position: fixed;
+  top: 55%;
+  width: 100%;
+  text-align: center;
+  font-size: 28px;
+  color: white;
+  background: rgba(0,0,0,0.7);
+  padding: 15px 0;
+  display: none;
+  user-select: none;
+}
+</style>
+</head>
+
+<body>
+
+<div id="ui">
+  <div id="stick-area">
+    <div id="stick"></div>
+  </div>
+  <div class="btn" id="jump">⤒</div>
+</div>
+
+<div id="gameover">GAME OVER</div>
+<div id="restart">RESTART</div>
+
+<script src="https://unpkg.com/three@0.155.0/build/three.min.js"></script>
+<script>
+/* ===== Three.js 基本 ===== */
+const scene = new THREE.Scene();
+scene.background = new THREE.Color(0x87ceeb);
+
+const camera = new THREE.PerspectiveCamera(
+  60,
+  window.innerWidth / window.innerHeight,
+  0.1,
+  1000
+);
+
+const renderer = new THREE.WebGLRenderer({ antialias: true });
+renderer.setSize(window.innerWidth, window.innerHeight);
+document.body.appendChild(renderer.domElement);
+
+/* ===== ライト ===== */
+scene.add(new THREE.AmbientLight(0xffffff, 0.5));
+const light = new THREE.DirectionalLight(0xffffff, 1);
+light.position.set(5, 10, 5);
+scene.add(light);
+
+/* ===== 地面 ===== */
+const ground = new THREE.Mesh(
+  new THREE.BoxGeometry(40, 1, 40),
+  new THREE.MeshStandardMaterial({ color: 0x228b22 })
+);
+ground.position.y = -0.5;
+scene.add(ground);
+
+/* ===== プレイヤー ===== */
+const player = new THREE.Mesh(
+  new THREE.BoxGeometry(1, 1, 1),
+  new THREE.MeshStandardMaterial({ color: 0xff0000 })
+);
+scene.add(player);
+
+/* ===== 敵 ===== */
+const enemies = [];
+
+function createEnemy(x, z) {
+  const enemy = new THREE.Mesh(
+    new THREE.BoxGeometry(1, 1, 1),
+    new THREE.MeshStandardMaterial({ color: 0x0000ff })
+  );
+  enemy.position.set(x, 0.5, z);
+  scene.add(enemy);
+  enemies.push(enemy);
+}
+
+/* 初期敵配置 */
+function spawnEnemies() {
+  createEnemy(3, -3);
+  createEnemy(-3, -5);
+  createEnemy(0, -8);
+}
+
+/* ===== 状態 ===== */
+let velocityY = 0;
+let onGround = true;
+let gameOver = false;
+
+const SPEED = 0.08;
+const JUMP = 0.25;
+const GRAVITY = 0.01;
+
+/* ===== 初期化 ===== */
+function resetGame() {
+  // プレイヤー
+  player.position.set(0, 0.5, 0);
+  velocityY = 0;
+  onGround = true;
+
+  // 敵削除
+  enemies.forEach(e => scene.remove(e));
+  enemies.length = 0;
+
+  // 敵再生成
+  spawnEnemies();
+
+  // UI
+  gameOver = false;
+  document.getElementById("gameover").style.display = "none";
+  document.getElementById("restart").style.display = "none";
+}
+
+resetGame();
+
+/* ===== カメラ ===== */
+camera.position.set(0, 5, 8);
+camera.lookAt(player.position);
+
+/* ===== スティック ===== */
+let stickX = 0;
+let stickY = 0;
+let stickActive = false;
+
+const stickArea = document.getElementById("stick-area");
+const stick = document.getElementById("stick");
+const center = { x: 60, y: 60 };
+const maxDist = 40;
+
+stickArea.addEventListener("touchstart", () => {
+  stickActive = true;
+});
+
+stickArea.addEventListener("touchmove", e => {
+  if (!stickActive) return;
+
+  const rect = stickArea.getBoundingClientRect();
+  const t = e.touches[0];
+
+  let x = t.clientX - rect.left - center.x;
+  let y = t.clientY - rect.top - center.y;
+
+  const d = Math.hypot(x, y);
+  if (d > maxDist) {
+    x = (x / d) * maxDist;
+    y = (y / d) * maxDist;
+  }
+
+  stick.style.left = `${x + center.x - 25}px`;
+  stick.style.top = `${y + center.y - 25}px`;
+
+  stickX = x / maxDist;
+  stickY = y / maxDist;
+});
+
+stickArea.addEventListener("touchend", () => {
+  stickActive = false;
+  stickX = 0;
+  stickY = 0;
+  stick.style.left = "35px";
+  stick.style.top = "35px";
+});
+
+/* ===== ジャンプ ===== */
+document.getElementById("jump").addEventListener("touchstart", e => {
+  e.preventDefault();
+  if (onGround && !gameOver) {
+    velocityY = JUMP;
+    onGround = false;
+  }
+});
+
+/* ===== 当たり判定 ===== */
+function checkEnemyCollision() {
+  if (gameOver) return;
+
+  for (let i = enemies.length - 1; i >= 0; i--) {
+    const enemy = enemies[i];
+    const d = player.position.distanceTo(enemy.position);
+
+    if (d < 1.2) {
+      // 踏んだ
+      if (velocityY < 0 && player.position.y > enemy.position.y + 0.5) {
+        scene.remove(enemy);
+        enemies.splice(i, 1);
+        velocityY = 0.2;
+        return;
+      }
+
+      // 横から
+      gameOver = true;
+      document.getElementById("gameover").style.display = "block";
+      document.getElementById("restart").style.display = "block";
+      return;
+    }
+  }
+}
+
+/* ===== リスタート ===== */
+document.getElementById("restart").addEventListener("touchstart", e => {
+  e.preventDefault();
+  resetGame();
+});
+
+/* ===== メインループ ===== */
+function animate() {
+  requestAnimationFrame(animate);
+
+  if (!gameOver) {
+    player.position.x += stickX * SPEED;
+    player.position.z -= stickY * SPEED;
+  }
+
+  velocityY -= GRAVITY;
+  player.position.y += velocityY;
+
+  if (player.position.y <= 0.5) {
+    player.position.y = 0.5;
+    velocityY = 0;
+    onGround = true;
+  }
+
+  checkEnemyCollision();
+
+  camera.position.x = player.position.x;
+  camera.position.z = player.position.z + 8;
+  camera.lookAt(player.position);
+
+  renderer.render(scene, camera);
+}
+
+animate();
+
+/* ===== リサイズ ===== */
+window.addEventListener("resize", () => {
+  camera.aspect = window.innerWidth / window.innerHeight;
+  camera.updateProjectionMatrix();
+  renderer.setSize(window.innerWidth, window.innerHeight);
+});
+</script>
+
+</body>
+</html>
